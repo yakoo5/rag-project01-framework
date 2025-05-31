@@ -3,6 +3,7 @@ from typing import Dict, Any
 
 class VectorDBProvider(str, Enum):
     MILVUS = "milvus"
+    CHROMA = "chroma"
     # More providers can be added later
 
 # 可以在这里添加其他配置相关的内容
@@ -22,5 +23,21 @@ MILVUS_CONFIG = {
             "M": 16,
             "efConstruction": 500
         }
+    }
+}
+
+# Chroma configuration
+CHROMA_CONFIG = {
+    "persist_directory": "03-vector-store/chroma",
+    "index_types": {
+        "hnsw": "hnsw",
+        "standard": "standard"
+    },
+    "index_params": {
+        "hnsw": {
+            "M": 16,
+            "ef_construction": 500
+        },
+        "standard": {}
     }
 } 

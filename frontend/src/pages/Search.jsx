@@ -1,5 +1,5 @@
 // src/pages/Search.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import RandomImage from '../components/RandomImage';
 import { apiBaseUrl } from '../config/config';
 
@@ -50,6 +50,7 @@ const Search = () => {
       const searchParams = {
         query,
         collection_id: collection,
+        provider: selectedProvider,
         top_k: topK,
         threshold,
         word_count_threshold: wordCountThreshold,
@@ -75,8 +76,8 @@ const Search = () => {
 
       if (data.results && data.results.results && data.results.results.length > 0) {
         setResults(data.results.results);
-        if (saveResults && data.saved_filepath) {
-          setStatus(`搜索完成！结果已保存至: ${data.saved_filepath}`);
+        if (saveResults && data.results.saved_filepath) {
+          setStatus(`搜索完成！结果已保存至: ${data.results.saved_filepath}`);
         } else {
           setStatus('搜索完成！');
         }
