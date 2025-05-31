@@ -44,6 +44,10 @@ class GenerationService:
         # 确保输出目录存在
         os.makedirs("05-generation-results", exist_ok=True)
         
+        # 创建模型卸载目录
+        self.offload_dir = os.path.join(os.getcwd(), "offload")
+        os.makedirs(self.offload_dir, exist_ok=True)
+        
     def _load_huggingface_model(self, model_name: str):
         """
         加载HuggingFace模型
@@ -61,7 +65,10 @@ class GenerationService:
             model = AutoModelForCausalLM.from_pretrained(
                 model_name,
                 torch_dtype=torch.float16,
-                device_map="auto"
+                device_map="cpu",
+                offload_folder=self.offload_dir,
+                offload_state_dict=True,
+                offload_buffers=True
             )
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name,
@@ -103,7 +110,7 @@ class GenerationService:
 
                         回答："""
         
-            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+            inputs = tokenizer(prompt, return_tensors="pt")
             outputs = model.generate(
                 **inputs,
                 max_length=max_length,
