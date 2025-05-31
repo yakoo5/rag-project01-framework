@@ -25,7 +25,8 @@ const EmbeddingFile = () => {
     huggingface: [
       { value: 'sentence-transformers/all-mpnet-base-v2', label: 'all-mpnet-base-v2' },
       { value: 'sentence-transformers/all-MiniLM-L6-v2', label: 'all-MiniLM-L6-v2' },
-      { value: 'google-bert/bert-base-uncased', label: 'bert-base-uncased' }
+      { value: 'google-bert/bert-base-uncased', label: 'bert-base-uncased' },
+      { value: 'Qwen/Qwen2-1.5B-Instruct', label: 'Qwen2-1.5B-Instruct' }
     ]
   };
 
