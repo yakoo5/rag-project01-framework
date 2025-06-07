@@ -600,7 +600,8 @@ async def load_file(
     loading_method: str = Form(...),
     strategy: str = Form(None),
     chunking_strategy: str = Form(None),
-    chunking_options: str = Form(None)
+    chunking_options: str = Form(None),
+    markdown_mode: str = Form('single')
 ):
     try:
         # 保存上传的文件
@@ -625,14 +626,20 @@ async def load_file(
         if chunking_options:
             chunking_options_dict = json.loads(chunking_options)
         
+        # 构建 options dict 传递给 LoadingService
+        options = {
+            "strategy": strategy,
+            "chunking_strategy": chunking_strategy,
+            "chunking_options": chunking_options_dict,
+            "markdown_mode": markdown_mode
+        }
+        
         # 使用 LoadingService 加载文档
         loading_service = LoadingService()
-        raw_text = loading_service.load_pdf(
+        raw_text = loading_service.load_file(
             temp_path, 
             loading_method, 
-            strategy=strategy,
-            chunking_strategy=chunking_strategy,
-            chunking_options=chunking_options_dict
+            options=options
         )
         
         metadata["total_pages"] = loading_service.get_total_pages()

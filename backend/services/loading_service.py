@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import datetime
 import json
+from langchain_community.document_loaders import UnstructuredMarkdownLoader, UnstructuredWordDocumentLoader, UnstructuredPowerPointLoader
 
 logger = logging.getLogger(__name__)
 """
@@ -37,6 +38,50 @@ class LoadingService:
         self.total_pages = 0
         self.current_page_map = []
     
+    def load_file(self, file_path: str, method: str, options: dict = None) -> str:
+        """
+        加载文件的主方法，支持多种文件类型和加载策略。
+
+        参数:
+            file_path (str): 文件路径
+            method (str): 加载方法，支持 'pymupdf', 'pypdf', 'pdfplumber', 'unstructured', 'txt', 'json', 'word', 'ppt', 'markdown'
+            options (dict, optional): 其它加载选项（如 strategy、chunking_strategy、chunking_options、markdown_mode 等）
+
+        返回:
+            str: 提取的文本内容
+        """
+        options = options or {}
+        try:
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            if file_extension == '.pdf':
+                return self.load_pdf(
+                    file_path,
+                    method,
+                    strategy=options.get('strategy'),
+                    chunking_strategy=options.get('chunking_strategy'),
+                    chunking_options=options.get('chunking_options')
+                )
+            elif file_extension == '.txt':
+                return self._load_txt(file_path)
+            elif file_extension == '.json':
+                return self._load_json(file_path)
+            elif file_extension in ['.doc', '.docx']:
+                return self._load_word(file_path)
+            elif file_extension in ['.ppt', '.pptx']:
+                return self._load_ppt(file_path)
+            elif file_extension == '.md':
+                return self._load_markdown(
+                    file_path,
+                    mode=options.get('markdown_mode', 'single'),
+                    strategy=options.get('strategy', 'fast')
+                )
+            else:
+                raise ValueError(f"Unsupported file type: {file_extension}")
+        except Exception as e:
+            logger.error(f"Error loading file: {str(e)}")
+            raise
+
     def load_pdf(self, file_path: str, method: str, strategy: str = None, chunking_strategy: str = None, chunking_options: dict = None) -> str:
         """
         加载PDF文档的主方法，支持多种加载策略。
@@ -271,7 +316,7 @@ class LoadingService:
         保存处理后的文档数据。
 
         参数:
-            filename (str): 原PDF文件名
+            filename (str): 原文件名
             chunks (list): 文档分块列表
             metadata (dict): 文档元数据
             loading_method (str): 使用的加载方法
@@ -283,7 +328,8 @@ class LoadingService:
         """
         try:
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-            base_name = filename.replace('.pdf', '').split('_')[0]
+            # 移除所有扩展名并获取基本文件名
+            base_name = os.path.splitext(filename)[0].split('_')[0]
             
             # Adjust the document name to include strategy if unstructured
             if loading_method == "unstructured" and strategy:
@@ -315,4 +361,142 @@ class LoadingService:
             
         except Exception as e:
             logger.error(f"Error saving document: {str(e)}")
+            raise
+
+    def _load_txt(self, file_path: str) -> str:
+        """
+        加载TXT文件。
+
+        参数:
+            file_path (str): TXT文件路径
+
+        返回:
+            str: 文件内容
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+                
+            # 将内容分成段落
+            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+            
+            # 创建页面映射
+            self.current_page_map = [{
+                "text": paragraph,
+                "page": 1,  # TXT文件没有页码概念，统一使用1
+                "metadata": {
+                    "paragraph_number": idx + 1,
+                    "word_count": len(paragraph.split())
+                }
+            } for idx, paragraph in enumerate(paragraphs)]
+            
+            self.total_pages = 1
+            return content
+            
+        except Exception as e:
+            logger.error(f"Error loading TXT file: {str(e)}")
+            raise
+
+    def _load_json(self, file_path: str) -> str:
+        """
+        加载JSON文件。
+
+        参数:
+            file_path (str): JSON文件路径
+
+        返回:
+            str: 文件内容的字符串表示
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+                
+            # 将JSON数据转换为格式化的字符串
+            content = json.dumps(data, ensure_ascii=False, indent=2)
+            
+            # 创建页面映射
+            self.current_page_map = [{
+                "text": content,
+                "page": 1,  # JSON文件没有页码概念，统一使用1
+                "metadata": {
+                    "file_type": "json",
+                    "word_count": len(content.split())
+                }
+            }]
+            
+            self.total_pages = 1
+            return content
+            
+        except Exception as e:
+            logger.error(f"Error loading JSON file: {str(e)}")
+            raise
+
+    def _load_word(self, file_path: str) -> str:
+        """
+        加载Word文档（.doc, .docx），使用LangChain的UnstructuredWordDocumentLoader。
+        返回提取的文本内容。
+        """
+        try:
+            loader = UnstructuredWordDocumentLoader(file_path)
+            docs = loader.load()
+            content = '\n\n'.join(doc.page_content for doc in docs)
+            self.current_page_map = [{
+                "text": doc.page_content,
+                "page": idx + 1,
+                "metadata": {
+                    "section_number": idx + 1,
+                    "word_count": len(doc.page_content.split())
+                }
+            } for idx, doc in enumerate(docs)]
+            self.total_pages = len(docs)
+            return content
+        except Exception as e:
+            logger.error(f"Error loading Word file: {str(e)}")
+            raise
+
+    def _load_ppt(self, file_path: str) -> str:
+        """
+        加载PPT文档（.ppt, .pptx），使用LangChain的UnstructuredPowerPointLoader。
+        返回提取的文本内容。
+        """
+        try:
+            loader = UnstructuredPowerPointLoader(file_path)
+            docs = loader.load()
+            content = '\n\n'.join(doc.page_content for doc in docs)
+            self.current_page_map = [{
+                "text": doc.page_content,
+                "page": idx + 1,
+                "metadata": {
+                    "slide_number": idx + 1,
+                    "word_count": len(doc.page_content.split())
+                }
+            } for idx, doc in enumerate(docs)]
+            self.total_pages = len(docs)
+            return content
+        except Exception as e:
+            logger.error(f"Error loading PPT file: {str(e)}")
+            raise
+
+    def _load_markdown(self, file_path: str, mode: str = 'single', strategy: str = 'fast') -> str:
+        """
+        加载Markdown文件（.md），使用LangChain的UnstructuredMarkdownLoader。
+        支持 single/elements 模式和 strategy。
+        返回提取的文本内容。
+        """
+        try:
+            loader = UnstructuredMarkdownLoader(file_path, mode=mode, strategy=strategy)
+            docs = loader.load()
+            content = '\n\n'.join(doc.page_content for doc in docs)
+            self.current_page_map = [{
+                "text": doc.page_content,
+                "page": idx + 1,
+                "metadata": {
+                    "section_number": idx + 1,
+                    "word_count": len(doc.page_content.split())
+                }
+            } for idx, doc in enumerate(docs)]
+            self.total_pages = len(docs)
+            return content
+        except Exception as e:
+            logger.error(f"Error loading Markdown file: {str(e)}")
             raise

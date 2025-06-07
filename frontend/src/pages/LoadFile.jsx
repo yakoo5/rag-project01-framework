@@ -5,6 +5,7 @@ import { apiBaseUrl } from '../config/config';
 
 const LoadFile = () => {
   const [file, setFile] = useState(null);
+  const [fileType, setFileType] = useState(null);
   const [loadingMethod, setLoadingMethod] = useState('pymupdf');
   const [unstructuredStrategy, setUnstructuredStrategy] = useState('fast');
   const [chunkingStrategy, setChunkingStrategy] = useState('basic');
@@ -21,6 +22,59 @@ const LoadFile = () => {
   const [documents, setDocuments] = useState([]);
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' 或 'documents'
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [markdownMode, setMarkdownMode] = useState('single'); // 'single' or 'elements'
+  const [markdownStrategy, setMarkdownStrategy] = useState('fast');
+
+  // 定义每种文件类型支持的加载方法及其显示文本
+  const loadingMethodsByType = {
+    'pdf': [
+      { value: 'pymupdf', label: 'PyMuPDF' },
+      { value: 'pypdf', label: 'PyPDF' },
+      { value: 'pdfplumber', label: 'PDFPlumber' },
+      { value: 'unstructured', label: 'Unstructured' }
+    ],
+    'txt': [
+      { value: 'txt', label: 'Text File' }
+    ],
+    'json': [
+      { value: 'json', label: 'JSON File' }
+    ],
+    'doc': [
+      { value: 'word', label: 'Word Document' }
+    ],
+    'docx': [
+      { value: 'word', label: 'Word Document' }
+    ],
+    'ppt': [
+      { value: 'ppt', label: 'PowerPoint' }
+    ],
+    'pptx': [
+      { value: 'ppt', label: 'PowerPoint' }
+    ],
+    'md': [
+      { value: 'markdown', label: 'Markdown (LangChain)' }
+    ]
+  };
+
+  // 当文件类型改变时，自动设置对应的加载方法
+  useEffect(() => {
+    if (fileType && loadingMethodsByType[fileType]) {
+      setLoadingMethod(loadingMethodsByType[fileType][0].value);
+    }
+  }, [fileType]);
+
+  // 处理文件选择
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      const extension = selectedFile.name.split('.').pop().toLowerCase();
+      setFile(selectedFile);
+      setFileType(extension);
+    } else {
+      setFile(null);
+      setFileType(null);
+    }
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -54,6 +108,10 @@ const LoadFile = () => {
         formData.append('strategy', unstructuredStrategy);
         formData.append('chunking_strategy', chunkingStrategy);
         formData.append('chunking_options', JSON.stringify(chunkingOptions));
+      }
+      if (loadingMethod === 'markdown') {
+        formData.append('markdown_mode', markdownMode);
+        formData.append('strategy', markdownStrategy);
       }
 
       const response = await fetch(`${apiBaseUrl}/load`, {
@@ -236,11 +294,11 @@ const LoadFile = () => {
         <div className="col-span-3 space-y-4">
           <div className="p-4 border rounded-lg bg-white shadow-sm">
             <div>
-              <label className="block text-sm font-medium mb-1">Upload PDF</label>
+              <label className="block text-sm font-medium mb-1">Upload File</label>
               <input
                 type="file"
-                accept=".pdf"
-                onChange={(e) => setFile(e.target.files[0])}
+                accept=".pdf,.txt,.json,.doc,.docx,.ppt,.pptx,.md"
+                onChange={handleFileChange}
                 className="block w-full border rounded px-3 py-2"
               />
             </div>
@@ -251,12 +309,44 @@ const LoadFile = () => {
                 value={loadingMethod}
                 onChange={(e) => setLoadingMethod(e.target.value)}
                 className="block w-full p-2 border rounded"
+                disabled={!fileType}
               >
-                <option value="pymupdf">PyMuPDF</option>
-                <option value="pypdf">PyPDF</option>
-                <option value="unstructured">Unstructured</option>
+                {fileType && loadingMethodsByType[fileType]?.map(method => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
               </select>
             </div>
+
+            {/* Markdown loader options */}
+            {loadingMethod === 'markdown' && (
+              <>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Markdown Loader Mode</label>
+                  <select
+                    value={markdownMode}
+                    onChange={e => setMarkdownMode(e.target.value)}
+                    className="block w-full p-2 border rounded"
+                  >
+                    <option value="single">Single Document</option>
+                    <option value="elements">Elements</option>
+                  </select>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Markdown Loader Strategy</label>
+                  <select
+                    value={markdownStrategy}
+                    onChange={e => setMarkdownStrategy(e.target.value)}
+                    className="block w-full p-2 border rounded"
+                  >
+                    <option value="fast">Fast</option>
+                    <option value="hi_res">High Resolution</option>
+                    <option value="ocr_only">OCR Only</option>
+                  </select>
+                </div>
+              </>
+            )}
 
             {loadingMethod === 'unstructured' && (
               <>
