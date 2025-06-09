@@ -301,6 +301,9 @@ const LoadFile = () => {
                 onChange={handleFileChange}
                 className="block w-full border rounded px-3 py-2"
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Supported file types: PDF, TXT, JSON, Word (DOC/DOCX), PowerPoint (PPT/PPTX), Markdown (MD)
+              </p>
             </div>
 
             <div className="mt-4">
