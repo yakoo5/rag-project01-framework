@@ -423,8 +423,23 @@ async def get_documents(type: str = Query("all")):
                             documents.append({
                                 "id": filename,
                                 "name": filename,  # 保持原始文件名
-                                "type": "chunked"
+                                "type": "chunked",
+                                "timestamp": doc_data.get("timestamp")
                             })
+        
+        # 对文档进行排序
+        def get_sort_key(doc):
+            # 优先使用timestamp排序
+            if doc.get("timestamp"):
+                return doc["timestamp"]
+            # 如果没有timestamp，使用metadata中的timestamp
+            if doc.get("metadata", {}).get("timestamp"):
+                return doc["metadata"]["timestamp"]
+            # 如果都没有timestamp，使用文件名
+            return doc["name"]
+        
+        # 按时间戳倒序排序
+        documents.sort(key=get_sort_key, reverse=True)
         
         return {"documents": documents}
     except Exception as e:
