@@ -684,8 +684,11 @@ async def load_file(
             chunks=chunks,
             metadata=metadata,
             loading_method=loading_method,
-            strategy=strategy,
-            chunking_strategy=chunking_strategy,
+            options={
+                "strategy": strategy,
+                "chunking_strategy": chunking_strategy,
+                "markdown_mode": markdown_mode
+            }
         )
         
         # 读取保存的文档以返回

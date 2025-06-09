@@ -311,7 +311,7 @@ class LoadingService:
             logger.error(f"pdfplumber error: {str(e)}")
             raise
     
-    def save_document(self, filename: str, chunks: list, metadata: dict, loading_method: str, strategy: str = None, chunking_strategy: str = None) -> str:
+    def save_document(self, filename: str, chunks: list, metadata: dict, loading_method: str, options: dict = None) -> str:
         """
         保存处理后的文档数据。
 
@@ -320,8 +320,7 @@ class LoadingService:
             chunks (list): 文档分块列表
             metadata (dict): 文档元数据
             loading_method (str): 使用的加载方法
-            strategy (str, optional): 使用的加载策略
-            chunking_strategy (str, optional): 使用的分块策略
+            options (dict, optional): 其他选项，如 strategy、chunking_strategy、markdown_mode 等
 
         返回:
             str: 保存的文件路径
@@ -331,9 +330,14 @@ class LoadingService:
             # 移除所有扩展名并获取基本文件名
             base_name = os.path.splitext(filename)[0].split('_')[0]
             
-            # Adjust the document name to include strategy if unstructured
-            if loading_method == "unstructured" and strategy:
-                doc_name = f"{base_name}_{loading_method}_{strategy}_{chunking_strategy}_{timestamp}"
+            # 根据文件类型和加载方法构建文档名
+            if loading_method == "unstructured" and options and options.get("strategy"):
+                doc_name = f"{base_name}_{loading_method}_{options['strategy']}_{options.get('chunking_strategy', '')}_{timestamp}"
+            elif loading_method == "markdown" and options:
+                # 为markdown文件添加strategy和markdown_mode信息
+                strategy = options.get("strategy", "fast")
+                markdown_mode = options.get("markdown_mode", "single")
+                doc_name = f"{base_name}_{loading_method}_{strategy}_{markdown_mode}_{timestamp}"
             else:
                 doc_name = f"{base_name}_{loading_method}_{timestamp}"
             
@@ -343,8 +347,7 @@ class LoadingService:
                 "total_chunks": int(len(chunks)),
                 "total_pages": int(metadata.get("total_pages", 1)),
                 "loading_method": str(loading_method),
-                "loading_strategy": str(strategy) if loading_method == "unstructured" and strategy else None,
-                "chunking_strategy": str(chunking_strategy) if loading_method == "unstructured" and chunking_strategy else None,
+                "options": options,  # 保存所有选项
                 "chunking_method": "loaded",
                 "timestamp": datetime.now().isoformat(),
                 "chunks": chunks
