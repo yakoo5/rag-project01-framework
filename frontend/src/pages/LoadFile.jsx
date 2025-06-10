@@ -1,22 +1,36 @@
 // src/pages/LoadFile.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import RandomImage from '../components/RandomImage';
 import UnstructuredChunk, { DEFAULT_UNSTRUCTURED_OPTIONS } from '../components/UnstructuredChunk';
+import TextChunk, { DEFAULT_TEXT_OPTIONS } from '../components/TextChunk';
+import MarkdownChunk, { DEFAULT_MARKDOWN_OPTIONS } from '../components/MarkdownChunk';
 import { apiBaseUrl } from '../config/config';
+
+// 定义选项处理配置
+const OPTIONS_PROCESSORS = {
+  unstructured: {
+    chunking_options: (value) => JSON.stringify(value)
+  },
+  markdown: {
+    // 可以添加 markdown 特定的处理逻辑
+  },
+  txt: {
+    // 可以添加 txt 特定的处理逻辑
+  }
+};
 
 const LoadFile = () => {
   const [file, setFile] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [loadingMethod, setLoadingMethod] = useState('pymupdf');
   const [unstructuredOptions, setUnstructuredOptions] = useState(DEFAULT_UNSTRUCTURED_OPTIONS);
+  const [textOptions, setTextOptions] = useState(DEFAULT_TEXT_OPTIONS);
+  const [markdownOptions, setMarkdownOptions] = useState(DEFAULT_MARKDOWN_OPTIONS);
   const [loadedContent, setLoadedContent] = useState(null);
   const [status, setStatus] = useState('');
   const [documents, setDocuments] = useState([]);
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' 或 'documents'
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [markdownMode, setMarkdownMode] = useState('single'); // 'single' or 'elements'
-  const [markdownStrategy, setMarkdownStrategy] = useState('fast');
-  const [chunkingStrategy, setChunkingStrategy] = useState('basic');
 
   // 定义每种文件类型支持的加载方法及其显示文本
   const loadingMethodsByType = {
@@ -49,16 +63,17 @@ const LoadFile = () => {
     ]
   };
 
+  // 使用 useMemo 缓存可用的加载方法
+  const availableLoadingMethods = useMemo(() => {
+    return fileType ? loadingMethodsByType[fileType] || [] : [];
+  }, [fileType]);
+
   // 当文件类型改变时，自动设置对应的加载方法
   useEffect(() => {
-    if (fileType && loadingMethodsByType[fileType]) {
-      setLoadingMethod(loadingMethodsByType[fileType][0].value);
-      // 为txt文件设置默认的分块策略
-      if (fileType === 'txt') {
-        setChunkingStrategy('single');
-      }
+    if (fileType && availableLoadingMethods.length > 0) {
+      setLoadingMethod(availableLoadingMethods[0].value);
     }
-  }, [fileType]);
+  }, [fileType, availableLoadingMethods]);
 
   // 处理文件选择
   const handleFileChange = (e) => {
@@ -87,6 +102,31 @@ const LoadFile = () => {
     }
   };
 
+  // 获取当前加载方法对应的选项
+  const getCurrentOptions = () => {
+    switch (loadingMethod) {
+      case 'unstructured':
+        return unstructuredOptions;
+      case 'markdown':
+        return markdownOptions;
+      case 'txt':
+        return textOptions;
+      default:
+        return {};
+    }
+  };
+
+  // 处理选项值
+  const processOptionValue = (method, key, value) => {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+    const processor = OPTIONS_PROCESSORS[method]?.[key];
+    return processor ? processor(value) : value;
+  };
+
+  // 处理文件加载
   const handleProcess = async () => {
     if (!file || !loadingMethod) {
       setStatus('Please select all required options');
@@ -101,18 +141,16 @@ const LoadFile = () => {
       formData.append('file', file);
       formData.append('loading_method', loadingMethod);
       
-      if (loadingMethod === 'unstructured') {
-        formData.append('strategy', unstructuredOptions.strategy);
-        formData.append('chunking_strategy', unstructuredOptions.chunking_strategy);
-        formData.append('chunking_options', JSON.stringify(unstructuredOptions.chunking_options));
-      }
-      if (loadingMethod === 'markdown') {
-        formData.append('markdown_mode', markdownMode);
-        formData.append('strategy', markdownStrategy);
-      }
-      if (loadingMethod === 'txt') {
-        formData.append('chunking_strategy', chunkingStrategy);
-      }
+      const currentOptions = getCurrentOptions();
+      
+      // 将所有非空选项添加到 formData
+      Object.entries(currentOptions).forEach(([key, value]) => {
+        const processedValue = processOptionValue(loadingMethod, key, value);
+        // 只有当处理后的值不为 null 时才添加到 formData
+        if (processedValue != null) {
+          formData.append(key, processedValue);
+        }
+      });
 
       const response = await fetch(`${apiBaseUrl}/load`, {
         method: 'POST',
@@ -309,6 +347,39 @@ const LoadFile = () => {
     );
   };
 
+  // 渲染加载方法选项
+  const renderLoadingMethodSelect = () => (
+    <div className="mt-4">
+      <label className="block text-sm font-medium mb-1">Loading Method</label>
+      <select
+        value={loadingMethod}
+        onChange={(e) => setLoadingMethod(e.target.value)}
+        className="block w-full p-2 border rounded"
+        disabled={!fileType}
+      >
+        {availableLoadingMethods.map(method => (
+          <option key={method.value} value={method.value}>
+            {method.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  // 渲染分块组件
+  const renderChunkComponent = () => {
+    switch (loadingMethod) {
+      case 'txt':
+        return <TextChunk onOptionsChange={setTextOptions} />;
+      case 'markdown':
+        return <MarkdownChunk onOptionsChange={setMarkdownOptions} />;
+      case 'unstructured':
+        return <UnstructuredChunk onOptionsChange={setUnstructuredOptions} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">Load File</h2>
@@ -330,69 +401,8 @@ const LoadFile = () => {
               </p>
             </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Loading Method</label>
-              <select
-                value={loadingMethod}
-                onChange={(e) => setLoadingMethod(e.target.value)}
-                className="block w-full p-2 border rounded"
-                disabled={!fileType}
-              >
-                {fileType && loadingMethodsByType[fileType]?.map(method => (
-                  <option key={method.value} value={method.value}>
-                    {method.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Text file chunking options */}
-            {loadingMethod === 'txt' && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium mb-1">Chunking Strategy</label>
-                <select
-                  value={chunkingStrategy}
-                  onChange={(e) => setChunkingStrategy(e.target.value)}
-                  className="block w-full p-2 border rounded"
-                >
-                  <option value="single">Single Document</option>
-                  <option value="by_paragraphs">By Paragraphs</option>
-                </select>
-              </div>
-            )}
-
-            {/* Markdown loader options */}
-            {loadingMethod === 'markdown' && (
-              <>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium mb-1">Markdown Loader Mode</label>
-                  <select
-                    value={markdownMode}
-                    onChange={e => setMarkdownMode(e.target.value)}
-                    className="block w-full p-2 border rounded"
-                  >
-                    <option value="single">Single Document</option>
-                    <option value="elements">Elements</option>
-                  </select>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium mb-1">Markdown Loader Strategy</label>
-                  <select
-                    value={markdownStrategy}
-                    onChange={e => setMarkdownStrategy(e.target.value)}
-                    className="block w-full p-2 border rounded"
-                  >
-                    <option value="fast">Fast</option>
-                    <option value="hi_res">High Resolution</option>
-                    <option value="ocr_only">OCR Only</option>
-                  </select>
-                </div>
-              </>
-            )}
-
-            {loadingMethod === 'unstructured' && (
-              <UnstructuredChunk onOptionsChange={setUnstructuredOptions} />
-            )}
+            {renderLoadingMethodSelect()}
+            {renderChunkComponent()}
 
             <button 
               onClick={handleProcess}
