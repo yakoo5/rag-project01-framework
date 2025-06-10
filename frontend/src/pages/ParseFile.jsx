@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import RandomImage from '../components/RandomImage';
+import UnstructuredChunk, { DEFAULT_UNSTRUCTURED_OPTIONS } from '../components/UnstructuredChunk';
 import { apiBaseUrl } from '../config/config';
 
 const ParseFile = () => {
@@ -7,25 +8,32 @@ const ParseFile = () => {
   const [loadingMethod, setLoadingMethod] = useState('pymupdf');
   const [parsingOption, setParsingOption] = useState('all_text');
   const [parsedContent, setParsedContent] = useState(null);
-  const [status, setStatus] = useState('');
-  const [docName, setDocName] = useState('');
-  const [isProcessed, setIsProcessed] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+  
+  // Add new state variable for Unstructured options
+  const [unstructuredOptions, setUnstructuredOptions] = useState(DEFAULT_UNSTRUCTURED_OPTIONS);
 
   const handleProcess = async () => {
     if (!file || !loadingMethod || !parsingOption) {
-      setStatus('Please select all required options');
+      setProcessingStatus('Please select all required options');
       return;
     }
 
-    setStatus('Processing...');
+    setProcessingStatus('Processing...');
     setParsedContent(null);
-    setIsProcessed(false);
 
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('loading_method', loadingMethod);
       formData.append('parsing_option', parsingOption);
+      
+      // Add Unstructured specific options if loading method is unstructured
+      if (loadingMethod === 'unstructured') {
+        formData.append('strategy', unstructuredOptions.strategy);
+        formData.append('chunking_strategy', unstructuredOptions.chunking_strategy);
+        formData.append('chunking_options', JSON.stringify(unstructuredOptions.chunking_options));
+      }
 
       const response = await fetch(`${apiBaseUrl}/parse`, {
         method: 'POST',
@@ -38,11 +46,10 @@ const ParseFile = () => {
 
       const data = await response.json();
       setParsedContent(data.parsed_content);
-      setStatus('Processing completed successfully!');
-      setIsProcessed(true);
+      setProcessingStatus('Processing completed successfully!');
     } catch (error) {
       console.error('Error:', error);
-      setStatus(`Error: ${error.message}`);
+      setProcessingStatus(`Error: ${error.message}`);
     }
   };
 
@@ -50,9 +57,11 @@ const ParseFile = () => {
     const file = e.target.files[0];
     if (file) {
       setFile(file);
-      const baseName = file.name.replace('.pdf', '');
-      setDocName(baseName);
     }
+  };
+
+  const handleUnstructuredOptionsChange = (options) => {
+    setUnstructuredOptions(options);
   };
 
   return (
@@ -88,6 +97,11 @@ const ParseFile = () => {
               </select>
             </div>
 
+            {/* Add UnstructuredChunk component when unstructured is selected */}
+            {loadingMethod === 'unstructured' && (
+              <UnstructuredChunk onOptionsChange={handleUnstructuredOptionsChange} />
+            )}
+
             <div className="mt-4">
               <label className="block text-sm font-medium mb-1">Parsing Option</label>
               <select
@@ -109,6 +123,12 @@ const ParseFile = () => {
             >
               Process File
             </button>
+
+            {processingStatus && (
+              <div className="mt-4 p-2 text-sm text-gray-600">
+                {processingStatus}
+              </div>
+            )}
           </div>
         </div>
 

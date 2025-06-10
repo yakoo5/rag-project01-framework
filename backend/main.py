@@ -571,7 +571,10 @@ async def delete_embedded_doc(doc_name: str):
 async def parse_file(
     file: UploadFile = File(...),
     loading_method: str = Form(...),
-    parsing_option: str = Form(...)
+    parsing_option: str = Form(...),
+    strategy: str = Form(None),
+    chunking_strategy: str = Form(None),
+    chunking_options: str = Form(None)
 ):
     try:
         # Save uploaded file
@@ -589,11 +592,36 @@ async def parse_file(
             "parsing_method": parsing_option,
         }
         
+        # Parse chunking options if provided
+        chunking_options_dict = None
+        if chunking_options:
+            chunking_options_dict = json.loads(chunking_options)
+        
+        # Build options dict for LoadingService
+        options = {
+            "strategy": strategy,
+            "chunking_strategy": chunking_strategy,
+            "chunking_options": chunking_options_dict
+        }
+        
         loading_service = LoadingService()
-        raw_text = loading_service.load_pdf(temp_path, loading_method)
+        raw_text = loading_service.load_pdf(
+            temp_path, 
+            loading_method,
+            strategy=strategy,
+            chunking_strategy=chunking_strategy,
+            chunking_options=chunking_options_dict
+        )
         metadata["total_pages"] = loading_service.get_total_pages()
         
         page_map = loading_service.get_page_map()
+
+        # 打印 raw_text
+        logger.info(f"Raw text: {raw_text}")
+        # 打印 metadata
+        logger.info(f"Metadata: {metadata}")
+        # 打印 page_map
+        logger.info(f"Page map: {page_map}")
         
         parsing_service = ParsingService()
         parsed_content = parsing_service.parse_pdf(
