@@ -22,7 +22,7 @@ const UnstructuredChunk = ({ onOptionsChange }) => {
   const [chunkingOptions, setChunkingOptions] = useState(DEFAULT_UNSTRUCTURED_OPTIONS.chunking_options);
 
   // 当任何选项改变时，通知父组件
-  const handleOptionChange = (newOptions) => {
+  const handleOptionChange = (newOptions, strategy = unstructuredStrategy, chunkingStrategy = chunkingStrategy) => {
     // 根据当前策略过滤选项
     const filteredOptions = chunkingStrategy === 'basic' 
       ? {
@@ -38,7 +38,7 @@ const UnstructuredChunk = ({ onOptionsChange }) => {
         };
 
     onOptionsChange({
-      strategy: unstructuredStrategy,
+      strategy: strategy,
       chunking_strategy: chunkingStrategy,
       chunking_options: filteredOptions
     });
@@ -48,7 +48,7 @@ const UnstructuredChunk = ({ onOptionsChange }) => {
   const handleStrategyChange = (e) => {
     const newStrategy = e.target.value;
     setUnstructuredStrategy(newStrategy);
-    handleOptionChange(chunkingOptions);
+    handleOptionChange(chunkingOptions, newStrategy, chunkingStrategy);
   };
 
   // 处理分块策略变化
@@ -69,13 +69,13 @@ const UnstructuredChunk = ({ onOptionsChange }) => {
           multiPageSections: DEFAULT_UNSTRUCTURED_OPTIONS.chunking_options.multiPageSections
         };
     setChunkingOptions(newOptions);
-    handleOptionChange(newOptions);
+    handleOptionChange(newOptions, unstructuredStrategy, newStrategy);
   };
 
   // 处理分块选项变化
   const handleChunkingOptionsChange = (newOptions) => {
     setChunkingOptions(newOptions);
-    handleOptionChange(newOptions);
+    handleOptionChange(newOptions, unstructuredStrategy, chunkingStrategy);
   };
 
   return (
