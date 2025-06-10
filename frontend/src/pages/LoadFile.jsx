@@ -1,22 +1,14 @@
 // src/pages/LoadFile.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import RandomImage from '../components/RandomImage';
+import UnstructuredChunk, { DEFAULT_UNSTRUCTURED_OPTIONS } from '../components/UnstructuredChunk';
 import { apiBaseUrl } from '../config/config';
 
 const LoadFile = () => {
   const [file, setFile] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [loadingMethod, setLoadingMethod] = useState('pymupdf');
-  const [unstructuredStrategy, setUnstructuredStrategy] = useState('fast');
-  const [chunkingStrategy, setChunkingStrategy] = useState('basic');
-  const [chunkingOptions, setChunkingOptions] = useState({
-    maxCharacters: 4000,
-    newAfterNChars: 3000,
-    combineTextUnderNChars: 500,
-    overlap: 200,
-    overlapAll: false,
-    multiPageSections: false
-  });
+  const [unstructuredOptions, setUnstructuredOptions] = useState(DEFAULT_UNSTRUCTURED_OPTIONS);
   const [loadedContent, setLoadedContent] = useState(null);
   const [status, setStatus] = useState('');
   const [documents, setDocuments] = useState([]);
@@ -24,6 +16,7 @@ const LoadFile = () => {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [markdownMode, setMarkdownMode] = useState('single'); // 'single' or 'elements'
   const [markdownStrategy, setMarkdownStrategy] = useState('fast');
+  const [chunkingStrategy, setChunkingStrategy] = useState('basic');
 
   // 定义每种文件类型支持的加载方法及其显示文本
   const loadingMethodsByType = {
@@ -109,9 +102,9 @@ const LoadFile = () => {
       formData.append('loading_method', loadingMethod);
       
       if (loadingMethod === 'unstructured') {
-        formData.append('strategy', unstructuredStrategy);
-        formData.append('chunking_strategy', chunkingStrategy);
-        formData.append('chunking_options', JSON.stringify(chunkingOptions));
+        formData.append('strategy', unstructuredOptions.strategy);
+        formData.append('chunking_strategy', unstructuredOptions.chunking_strategy);
+        formData.append('chunking_options', JSON.stringify(unstructuredOptions.chunking_options));
       }
       if (loadingMethod === 'markdown') {
         formData.append('markdown_mode', markdownMode);
@@ -398,126 +391,7 @@ const LoadFile = () => {
             )}
 
             {loadingMethod === 'unstructured' && (
-              <>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium mb-1">Unstructured Strategy</label>
-                  <select
-                    value={unstructuredStrategy}
-                    onChange={(e) => setUnstructuredStrategy(e.target.value)}
-                    className="block w-full p-2 border rounded"
-                  >
-                    <option value="fast">Fast</option>
-                    <option value="hi_res">High Resolution</option>
-                    <option value="ocr_only">OCR Only</option>
-                  </select>
-                </div>
-
-                <div className="mt-4">
-                  <label className="block text-sm font-medium mb-1">Chunking Strategy</label>
-                  <select
-                    value={chunkingStrategy}
-                    onChange={(e) => setChunkingStrategy(e.target.value)}
-                    className="block w-full p-2 border rounded"
-                  >
-                    <option value="basic">Basic</option>
-                    <option value="by_title">By Title</option>
-                  </select>
-                </div>
-
-                {chunkingStrategy === 'basic' && (
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Max Characters</label>
-                      <input
-                        type="number"
-                        value={chunkingOptions.maxCharacters}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          maxCharacters: parseInt(e.target.value)
-                        }))}
-                        className="block w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">New After N Chars</label>
-                      <input
-                        type="number"
-                        value={chunkingOptions.newAfterNChars}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          newAfterNChars: parseInt(e.target.value)
-                        }))}
-                        className="block w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Combine Text Under N Chars</label>
-                      <input
-                        type="number"
-                        value={chunkingOptions.combineTextUnderNChars}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          combineTextUnderNChars: parseInt(e.target.value)
-                        }))}
-                        className="block w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Overlap</label>
-                      <input
-                        type="number"
-                        value={chunkingOptions.overlap}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          overlap: parseInt(e.target.value)
-                        }))}
-                        className="block w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={chunkingOptions.overlapAll}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          overlapAll: e.target.checked
-                        }))}
-                        className="mr-2"
-                      />
-                      <label className="text-sm font-medium">Overlap All</label>
-                    </div>
-                  </div>
-                )}
-
-                {chunkingStrategy === 'by_title' && (
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Combine Text Under N Chars</label>
-                      <input
-                        type="number"
-                        value={chunkingOptions.combineTextUnderNChars}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          combineTextUnderNChars: parseInt(e.target.value)
-                        }))}
-                        className="block w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={chunkingOptions.multiPageSections}
-                        onChange={(e) => setChunkingOptions(prev => ({
-                          ...prev,
-                          multiPageSections: e.target.checked
-                        }))}
-                        className="mr-2"
-                      />
-                      <label className="text-sm font-medium">Multi-page Sections</label>
-                    </div>
-                  </div>
-                )}
-              </>
+              <UnstructuredChunk onOptionsChange={setUnstructuredOptions} />
             )}
 
             <button 
