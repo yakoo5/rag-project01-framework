@@ -618,7 +618,7 @@ async def load_file(
     strategy: str = Form(None),
     chunking_strategy: str = Form(None),
     chunking_options: str = Form(None),
-    markdown_mode: str = Form('single')
+    markdown_mode: str = Form(None)
 ):
     try:
         # 保存上传的文件
