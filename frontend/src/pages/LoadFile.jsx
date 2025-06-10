@@ -60,6 +60,10 @@ const LoadFile = () => {
   useEffect(() => {
     if (fileType && loadingMethodsByType[fileType]) {
       setLoadingMethod(loadingMethodsByType[fileType][0].value);
+      // 为txt文件设置默认的分块策略
+      if (fileType === 'txt') {
+        setChunkingStrategy('single');
+      }
     }
   }, [fileType]);
 
