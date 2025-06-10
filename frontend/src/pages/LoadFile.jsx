@@ -113,6 +113,9 @@ const LoadFile = () => {
         formData.append('markdown_mode', markdownMode);
         formData.append('strategy', markdownStrategy);
       }
+      if (loadingMethod === 'txt') {
+        formData.append('chunking_strategy', chunkingStrategy);
+      }
 
       const response = await fetch(`${apiBaseUrl}/load`, {
         method: 'POST',
@@ -345,6 +348,21 @@ const LoadFile = () => {
                 ))}
               </select>
             </div>
+
+            {/* Text file chunking options */}
+            {loadingMethod === 'txt' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-1">Chunking Strategy</label>
+                <select
+                  value={chunkingStrategy}
+                  onChange={(e) => setChunkingStrategy(e.target.value)}
+                  className="block w-full p-2 border rounded"
+                >
+                  <option value="single">Single Document</option>
+                  <option value="by_paragraphs">By Paragraphs</option>
+                </select>
+              </div>
+            )}
 
             {/* Markdown loader options */}
             {loadingMethod === 'markdown' && (

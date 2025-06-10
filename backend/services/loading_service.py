@@ -63,7 +63,7 @@ class LoadingService:
                     chunking_options=options.get('chunking_options')
                 )
             elif file_extension == '.txt':
-                return self._load_txt(file_path)
+                return self._load_txt(file_path, options)
             elif file_extension == '.json':
                 return self._load_json(file_path)
             elif file_extension in ['.doc', '.docx']:
@@ -366,32 +366,52 @@ class LoadingService:
             logger.error(f"Error saving document: {str(e)}")
             raise
 
-    def _load_txt(self, file_path: str) -> str:
+    def _load_txt(self, file_path: str, options: dict = None) -> str:
         """
         加载TXT文件。
 
         参数:
             file_path (str): TXT文件路径
+            options (dict): 配置选项，包含：
+                - chunking_strategy (str): 分块策略，可选 'single' 或 'by_paragraphs'
+                - 其他可能的配置选项
 
         返回:
             str: 文件内容
         """
         try:
+            options = options or {}
+            chunking_strategy = options.get('chunking_strategy', 'single')
+            
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
                 
-            # 将内容分成段落
-            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
-            
-            # 创建页面映射
-            self.current_page_map = [{
-                "text": paragraph,
-                "page": 1,  # TXT文件没有页码概念，统一使用1
-                "metadata": {
-                    "paragraph_number": idx + 1,
-                    "word_count": len(paragraph.split())
-                }
-            } for idx, paragraph in enumerate(paragraphs)]
+            if chunking_strategy == 'single':
+                # 将整个文件作为一个块
+                self.current_page_map = [{
+                    "text": content,
+                    "page": 1,
+                    "metadata": {
+                        "word_count": len(content.split()),
+                        "chunking_strategy": "single",
+                        "options": options
+                    }
+                }]
+            else:  # by_paragraphs
+                # 将内容分成段落
+                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+                
+                # 创建页面映射
+                self.current_page_map = [{
+                    "text": paragraph,
+                    "page": 1,  # TXT文件没有页码概念，统一使用1
+                    "metadata": {
+                        "paragraph_number": idx + 1,
+                        "word_count": len(paragraph.split()),
+                        "chunking_strategy": "by_paragraphs",
+                        "options": options
+                    }
+                } for idx, paragraph in enumerate(paragraphs)]
             
             self.total_pages = 1
             return content
