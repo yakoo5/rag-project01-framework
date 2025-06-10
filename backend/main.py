@@ -574,7 +574,8 @@ async def parse_file(
     parsing_option: str = Form(...),
     strategy: str = Form(None),
     chunking_strategy: str = Form(None),
-    chunking_options: str = Form(None)
+    chunking_options: str = Form(None),
+    markdown_mode: str = Form(None)
 ):
     try:
         # Save uploaded file
@@ -601,17 +602,18 @@ async def parse_file(
         options = {
             "strategy": strategy,
             "chunking_strategy": chunking_strategy,
-            "chunking_options": chunking_options_dict
+            "chunking_options": chunking_options_dict,
+            "markdown_mode": markdown_mode
         }
         
+        # 使用 LoadingService 加载文档
         loading_service = LoadingService()
-        raw_text = loading_service.load_pdf(
+        raw_text = loading_service.load_file(
             temp_path, 
-            loading_method,
-            strategy=strategy,
-            chunking_strategy=chunking_strategy,
-            chunking_options=chunking_options_dict
+            loading_method, 
+            options=options
         )
+        
         metadata["total_pages"] = loading_service.get_total_pages()
         
         page_map = loading_service.get_page_map()

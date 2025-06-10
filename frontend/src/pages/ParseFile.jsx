@@ -1,17 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import RandomImage from '../components/RandomImage';
 import UnstructuredChunk, { DEFAULT_UNSTRUCTURED_OPTIONS } from '../components/UnstructuredChunk';
+import TextChunk, { DEFAULT_TEXT_OPTIONS } from '../components/TextChunk';
+import MarkdownChunk, { DEFAULT_MARKDOWN_OPTIONS } from '../components/MarkdownChunk';
 import { apiBaseUrl } from '../config/config';
 
 const ParseFile = () => {
   const [file, setFile] = useState(null);
+  const [fileType, setFileType] = useState(null);
   const [loadingMethod, setLoadingMethod] = useState('pymupdf');
   const [parsingOption, setParsingOption] = useState('all_text');
   const [parsedContent, setParsedContent] = useState(null);
   const [processingStatus, setProcessingStatus] = useState('');
   
-  // Add new state variable for Unstructured options
+  // Add new state variables for options
   const [unstructuredOptions, setUnstructuredOptions] = useState(DEFAULT_UNSTRUCTURED_OPTIONS);
+  const [textOptions, setTextOptions] = useState(DEFAULT_TEXT_OPTIONS);
+  const [markdownOptions, setMarkdownOptions] = useState(DEFAULT_MARKDOWN_OPTIONS);
+
+  // Define loading methods by file type
+  const loadingMethodsByType = {
+    'pdf': [
+      { value: 'pymupdf', label: 'PyMuPDF' },
+      { value: 'pypdf', label: 'PyPDF' },
+      { value: 'pdfplumber', label: 'PDFPlumber' },
+      { value: 'unstructured', label: 'Unstructured' }
+    ],
+    'txt': [
+      { value: 'txt', label: 'Text File' }
+    ],
+    'json': [
+      { value: 'json', label: 'JSON File' }
+    ],
+    'doc': [
+      { value: 'word', label: 'Word Document' }
+    ],
+    'docx': [
+      { value: 'word', label: 'Word Document' }
+    ],
+    'ppt': [
+      { value: 'ppt', label: 'PowerPoint' }
+    ],
+    'pptx': [
+      { value: 'ppt', label: 'PowerPoint' }
+    ],
+    'md': [
+      { value: 'markdown', label: 'Markdown (LangChain)' }
+    ]
+  };
+
+  // Use useMemo to cache available loading methods
+  const availableLoadingMethods = useMemo(() => {
+    return fileType ? loadingMethodsByType[fileType] || [] : [];
+  }, [fileType]);
+
+  // Auto-set loading method when file type changes
+  useEffect(() => {
+    if (fileType && availableLoadingMethods.length > 0) {
+      setLoadingMethod(availableLoadingMethods[0].value);
+    }
+  }, [fileType, availableLoadingMethods]);
+
+  // 定义选项处理配置
+  const OPTIONS_PROCESSORS = {
+    unstructured: {
+      chunking_options: (value) => JSON.stringify(value)
+    },
+    markdown: {
+      // 可以添加 markdown 特定的处理逻辑
+    },
+    txt: {
+      // 可以添加 txt 特定的处理逻辑
+    }
+  };
+
+  // 获取当前加载方法对应的选项
+  const getCurrentOptions = () => {
+    switch (loadingMethod) {
+      case 'unstructured':
+        return unstructuredOptions;
+      case 'markdown':
+        return markdownOptions;
+      case 'txt':
+        return textOptions;
+      default:
+        return {};
+    }
+  };
+
+  // 处理选项值
+  const processOptionValue = (method, key, value) => {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+    const processor = OPTIONS_PROCESSORS[method]?.[key];
+    return processor ? processor(value) : value;
+  };
 
   const handleProcess = async () => {
     if (!file || !loadingMethod || !parsingOption) {
@@ -28,12 +113,16 @@ const ParseFile = () => {
       formData.append('loading_method', loadingMethod);
       formData.append('parsing_option', parsingOption);
       
-      // Add Unstructured specific options if loading method is unstructured
-      if (loadingMethod === 'unstructured') {
-        formData.append('strategy', unstructuredOptions.strategy);
-        formData.append('chunking_strategy', unstructuredOptions.chunking_strategy);
-        formData.append('chunking_options', JSON.stringify(unstructuredOptions.chunking_options));
-      }
+      const currentOptions = getCurrentOptions();
+      
+      // 将所有非空选项添加到 formData
+      Object.entries(currentOptions).forEach(([key, value]) => {
+        const processedValue = processOptionValue(loadingMethod, key, value);
+        // 只有当处理后的值不为 null 时才添加到 formData
+        if (processedValue != null) {
+          formData.append(key, processedValue);
+        }
+      });
 
       const response = await fetch(`${apiBaseUrl}/parse`, {
         method: 'POST',
@@ -54,14 +143,48 @@ const ParseFile = () => {
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFile(file);
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      const extension = selectedFile.name.split('.').pop().toLowerCase();
+      setFile(selectedFile);
+      setFileType(extension);
+    } else {
+      setFile(null);
+      setFileType(null);
     }
   };
 
-  const handleUnstructuredOptionsChange = (options) => {
-    setUnstructuredOptions(options);
+  // Render loading method options
+  const renderLoadingMethodSelect = () => (
+    <div className="mt-4">
+      <label className="block text-sm font-medium mb-1">Loading Method</label>
+      <select
+        value={loadingMethod}
+        onChange={(e) => setLoadingMethod(e.target.value)}
+        className="block w-full p-2 border rounded"
+        disabled={!fileType}
+      >
+        {availableLoadingMethods.map(method => (
+          <option key={method.value} value={method.value}>
+            {method.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  // Render chunk component based on loading method
+  const renderChunkComponent = () => {
+    switch (loadingMethod) {
+      case 'txt':
+        return <TextChunk onOptionsChange={setTextOptions} />;
+      case 'markdown':
+        return <MarkdownChunk onOptionsChange={setMarkdownOptions} />;
+      case 'unstructured':
+        return <UnstructuredChunk onOptionsChange={setUnstructuredOptions} />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -73,34 +196,21 @@ const ParseFile = () => {
         <div className="col-span-3 space-y-4">
           <div className="p-4 border rounded-lg bg-white shadow-sm">
             <div>
-              <label className="block text-sm font-medium mb-1">Upload PDF</label>
+              <label className="block text-sm font-medium mb-1">Upload File</label>
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.txt,.json,.doc,.docx,.ppt,.pptx,.md"
                 onChange={handleFileSelect}
                 className="block w-full border rounded px-3 py-2"
                 required
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Supported file types: PDF, TXT, JSON, Word (DOC/DOCX), PowerPoint (PPT/PPTX), Markdown (MD)
+              </p>
             </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Loading Tool</label>
-              <select
-                value={loadingMethod}
-                onChange={(e) => setLoadingMethod(e.target.value)}
-                className="block w-full p-2 border rounded"
-              >
-                <option value="pymupdf">PyMuPDF</option>
-                <option value="pypdf">PyPDF</option>
-                <option value="unstructured">Unstructured</option>
-                <option value="pdfplumber">PDF Plumber</option>
-              </select>
-            </div>
-
-            {/* Add UnstructuredChunk component when unstructured is selected */}
-            {loadingMethod === 'unstructured' && (
-              <UnstructuredChunk onOptionsChange={handleUnstructuredOptionsChange} />
-            )}
+            {renderLoadingMethodSelect()}
+            {renderChunkComponent()}
 
             <div className="mt-4">
               <label className="block text-sm font-medium mb-1">Parsing Option</label>
