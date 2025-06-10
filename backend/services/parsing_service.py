@@ -108,7 +108,8 @@ class ParsingService:
         通过识别标题来解析文档并将内容组织成章节
 
         使用简单的启发式方法识别标题：
-        长度小于60个字符且全部大写的行被视为章节标题
+        1. 长度小于60个字符且全部大写的行被视为章节标题
+        2. 长度小于60个字符且包含中文字符的行也被视为章节标题
 
         参数:
             page_map (list): 包含每页内容的字典列表
@@ -123,8 +124,10 @@ class ParsingService:
         for page in page_map:
             lines = page["text"].split('\n')
             for line in lines:
-                # Simple heuristic: consider lines with less than 60 chars and all caps as titles
-                if len(line.strip()) < 60 and line.isupper():
+                # 检查是否包含中文字符
+                has_chinese = any('\u4e00' <= char <= '\u9fff' for char in line)
+                # 检查是否为标题：长度小于60且（全大写或包含中文）
+                if len(line.strip()) < 60 and (line.isupper() or has_chinese):
                     if current_title:
                         parsed_content.append({
                             "type": "section",
