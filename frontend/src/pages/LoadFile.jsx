@@ -216,6 +216,18 @@ const LoadFile = () => {
                   <p>Chunking Method: {loadedContent.chunking_method || 'N/A'}</p>
                   <p>Processing Date: {loadedContent.timestamp ? 
                     new Date(loadedContent.timestamp).toLocaleString() : 'N/A'}</p>
+                  {loadedContent.options && (
+                    <div className="mt-2">
+                      <p className="font-medium">Options:</p>
+                      <div className="pl-2">
+                        {Object.entries(loadedContent.options).map(([key, value]) => (
+                          <p key={key}>
+                            {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
@@ -254,6 +266,18 @@ const LoadFile = () => {
                         <p>Chunking Method: {doc.metadata?.chunking_method || 'N/A'}</p>
                         <p>Created: {doc.metadata?.timestamp ? 
                           new Date(doc.metadata.timestamp).toLocaleString() : 'N/A'}</p>
+                        {doc.metadata?.options && (
+                          <div className="mt-2">
+                            <p className="font-medium">Options:</p>
+                            <div className="pl-2">
+                              {Object.entries(doc.metadata.options).map(([key, value]) => (
+                                <p key={key}>
+                                  {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-2">

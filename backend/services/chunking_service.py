@@ -109,7 +109,8 @@ class ChunkingService:
                 "loading_method": metadata.get("loading_method", ""),
                 "chunking_method": method,
                 "timestamp": datetime.now().isoformat(),
-                "chunks": chunks
+                "chunks": chunks,
+                "options": {k: v for k, v in config.items() if v is not None}
             }
             
             return document_data

@@ -407,7 +407,8 @@ async def get_documents(type: str = Query("all")):
                                     "total_chunks": doc_data.get("total_chunks"),
                                     "loading_method": doc_data.get("loading_method"),
                                     "chunking_method": doc_data.get("chunking_method"),
-                                    "timestamp": doc_data.get("timestamp")
+                                    "timestamp": doc_data.get("timestamp"),
+                                    "options": doc_data.get("options")
                                 }
                             })
 
@@ -424,7 +425,8 @@ async def get_documents(type: str = Query("all")):
                                 "id": filename,
                                 "name": filename,  # 保持原始文件名
                                 "type": "chunked",
-                                "timestamp": doc_data.get("timestamp")
+                                "timestamp": doc_data.get("timestamp"),
+                                "options": doc_data.get("options")
                             })
         
         # 对文档进行排序

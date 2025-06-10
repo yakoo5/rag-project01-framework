@@ -347,7 +347,7 @@ class LoadingService:
                 "total_chunks": int(len(chunks)),
                 "total_pages": int(metadata.get("total_pages", 1)),
                 "loading_method": str(loading_method),
-                "options": options,  # 保存所有选项
+                "options": {k: v for k, v in options.items() if v is not None},  # 保存所有选项
                 "chunking_method": "loaded",
                 "timestamp": datetime.now().isoformat(),
                 "chunks": chunks

@@ -125,7 +125,8 @@ const ChunkFile = () => {
         loading_method: data.loading_method,
         chunking_method: data.chunking_method,
         timestamp: data.timestamp,
-        chunks: data.chunks
+        chunks: data.chunks,
+        options: data.options
       });
 
       setStatus('Chunking completed successfully!');
@@ -212,6 +213,18 @@ const ChunkFile = () => {
                   <p>Loading Method: {chunks.loading_method}</p>
                   <p>Chunking Method: {chunks.chunking_method}</p>
                   <p>Timestamp: {chunks.timestamp ? new Date(chunks.timestamp).toLocaleString() : 'N/A'}</p>
+                  {chunks.options && (
+                    <div className="mt-2">
+                      <p className="font-medium">Options:</p>
+                      <div className="pl-2">
+                        {Object.entries(chunks.options).map(([key, value]) => (
+                          <p key={key}>
+                            {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
@@ -249,6 +262,18 @@ const ChunkFile = () => {
                           <p>Chunks: {doc.total_chunks || 'N/A'}</p>
                           <p>Chunking Method: {doc.chunking_method || 'N/A'}</p>
                           <p>Processing Date: {doc.timestamp ? new Date(doc.timestamp).toLocaleString() : 'N/A'}</p>
+                          {doc.options && (
+                            <div className="mt-2">
+                              <p className="font-medium">Options:</p>
+                              <div className="pl-2">
+                                {Object.entries(doc.options).map(([key, value]) => (
+                                  <p key={key}>
+                                    {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex space-x-2 ml-4">
