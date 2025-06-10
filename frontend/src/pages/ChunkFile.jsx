@@ -5,13 +5,18 @@ import { apiBaseUrl } from '../config/config';
 const ChunkFile = () => {
   const [loadedDocuments, setLoadedDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState('');
-  const [chunkingOption, setChunkingOption] = useState('by_pages');
+  const [chunkingMethod, setChunkingMethod] = useState('by_pages');
   const [chunkSize, setChunkSize] = useState(1000);
   const [chunks, setChunks] = useState(null);
   const [status, setStatus] = useState('');
   const [activeTab, setActiveTab] = useState('chunks');
   const [processingStatus, setProcessingStatus] = useState('');
   const [chunkedDocuments, setChunkedDocuments] = useState([]);
+  const [chunkConfig, setChunkConfig] = useState({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+    separators: ["。", "！", "？", "\n", " "]
+  });
 
   useEffect(() => {
     fetchLoadedDocuments();
@@ -69,8 +74,8 @@ const ChunkFile = () => {
   };
 
   const handleChunk = async () => {
-    if (!selectedDoc || !chunkingOption) {
-      setStatus('Please select a document and chunking option');
+    if (!selectedDoc || !chunkingMethod) {
+      setStatus('Please select a document and chunking method');
       return;
     }
 
@@ -80,16 +85,30 @@ const ChunkFile = () => {
     try {
       const docId = selectedDoc.endsWith('.json') ? selectedDoc : `${selectedDoc}.json`;
       
+      const requestBody = {
+        doc_id: docId,
+        chunking_method: chunkingMethod,
+      };
+
+      // 根据分块选项设置配置
+      if (chunkingMethod === 'by_sentences') {
+        requestBody.chunk_config = {
+          chunk_size: chunkConfig.chunkSize,
+          chunk_overlap: chunkConfig.chunkOverlap,
+          separators: chunkConfig.separators
+        };
+      } else if (chunkingMethod === 'fixed_size') {
+        requestBody.chunk_config = {
+          chunk_size: chunkSize
+        };
+      }
+      
       const response = await fetch(`${apiBaseUrl}/chunk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          doc_id: docId,
-          chunking_option: chunkingOption,
-          chunk_size: chunkSize,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -288,8 +307,8 @@ const ChunkFile = () => {
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Chunking Method</label>
               <select
-                value={chunkingOption}
-                onChange={(e) => setChunkingOption(e.target.value)}
+                value={chunkingMethod}
+                onChange={(e) => setChunkingMethod(e.target.value)}
                 className="block w-full p-2 border rounded"
               >
                 <option value="by_pages">By Pages</option>
@@ -299,7 +318,7 @@ const ChunkFile = () => {
               </select>
             </div>
 
-            {chunkingOption === 'fixed_size' && (
+            {chunkingMethod === 'fixed_size' && (
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">Chunk Size</label>
                 <input
@@ -310,6 +329,65 @@ const ChunkFile = () => {
                   min="100"
                   max="5000"
                 />
+              </div>
+            )}
+
+            {chunkingMethod === 'by_sentences' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Chunk Size</label>
+                  <input
+                    type="number"
+                    value={chunkConfig.chunkSize}
+                    onChange={(e) => setChunkConfig(prev => ({
+                      ...prev,
+                      chunkSize: Number(e.target.value)
+                    }))}
+                    className="block w-full p-2 border rounded"
+                    min="100"
+                    max="5000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Chunk Overlap</label>
+                  <input
+                    type="number"
+                    value={chunkConfig.chunkOverlap}
+                    onChange={(e) => setChunkConfig(prev => ({
+                      ...prev,
+                      chunkOverlap: Number(e.target.value)
+                    }))}
+                    className="block w-full p-2 border rounded"
+                    min="0"
+                    max="1000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Separators (JSON array)</label>
+                  <input
+                    type="text"
+                    value={JSON.stringify(chunkConfig.separators)}
+                    onChange={(e) => {
+                      try {
+                        const newSeparators = JSON.parse(e.target.value);
+                        if (Array.isArray(newSeparators)) {
+                          setChunkConfig(prev => ({
+                            ...prev,
+                            separators: newSeparators
+                          }));
+                        }
+                      } catch (error) {
+                        // 如果 JSON 解析失败，保持原值不变
+                        console.error('Invalid JSON array:', error);
+                      }
+                    }}
+                    className="block w-full p-2 border rounded font-mono"
+                    placeholder="[&quot;。&quot;, &quot;！&quot;, &quot;？&quot;, &quot;\n&quot;, &quot; &quot;]"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter a JSON array of strings, e.g. [&quot;。&quot;, &quot;！&quot;, &quot;？&quot;, &quot;\n&quot;, &quot; &quot;]
+                  </p>
+                </div>
               </div>
             )}
 

@@ -707,13 +707,13 @@ async def load_file(
 async def chunk_document(data: dict = Body(...)):
     try:
         doc_id = data.get("doc_id")
-        chunking_option = data.get("chunking_option")
-        chunk_size = data.get("chunk_size", 1000)
+        chunking_method = data.get("chunking_method")
+        chunk_config = data.get("chunk_config", {})
         
-        if not doc_id or not chunking_option:
+        if not doc_id or not chunking_method:
             raise HTTPException(
                 status_code=400, 
-                detail="Missing required parameters: doc_id and chunking_option"
+                detail="Missing required parameters: doc_id and chunking_method"
             )
         
         # 读取已加载的文档
@@ -743,16 +743,16 @@ async def chunk_document(data: dict = Body(...)):
         chunking_service = ChunkingService()
         result = chunking_service.chunk_text(
             text="",  # 不需要传递文本，因为我们使用 page_map
-            method=chunking_option,
+            method=chunking_method,
             metadata=metadata,
             page_map=page_map,
-            chunk_size=chunk_size
+            chunk_config=chunk_config
         )
         
         # 生成输出文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        base_name = doc_data['filename'].replace('.pdf', '').split('_')[0]
-        output_filename = f"{base_name}_{chunking_option}_{timestamp}.json"
+        base_name = Path(doc_data['filename']).stem.split('_')[0]
+        output_filename = f"{base_name}_{chunking_method}_{timestamp}.json"
         
         output_path = os.path.join("01-chunked-docs", output_filename)
         os.makedirs("01-chunked-docs", exist_ok=True)

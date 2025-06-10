@@ -15,7 +15,7 @@ class ChunkingService:
     - by_sentences: 按句子分块
     """
     
-    def chunk_text(self, text: str, method: str, metadata: dict, page_map: list = None, chunk_size: int = 1000) -> dict:
+    def chunk_text(self, text: str, method: str, metadata: dict, page_map: list = None, chunk_config: dict = None) -> dict:
         """
         将文本按指定方法分块
         
@@ -24,7 +24,10 @@ class ChunkingService:
             method: 分块方法，支持 'by_pages', 'fixed_size', 'by_paragraphs', 'by_sentences'
             metadata: 文档元数据
             page_map: 页面映射列表，每个元素包含页码和页面文本
-            chunk_size: 固定大小分块时的块大小
+            chunk_config: 分块配置，包含以下参数：
+                - chunk_size: 每个块的最大字符数
+                - chunk_overlap: 块之间的重叠字符数（仅用于 by_sentences）
+                - separators: 分隔符列表（仅用于 by_sentences）
             
         Returns:
             包含分块结果的文档数据结构
@@ -38,6 +41,16 @@ class ChunkingService:
             
             chunks = []
             total_pages = len(page_map)
+            
+            # 设置默认配置
+            default_config = {
+                "chunk_size": 1000,
+                "chunk_overlap": 200,
+                "separators": ["。", "！", "？", "\n", " "]
+            }
+            
+            # 合并用户配置和默认配置
+            config = {**default_config, **(chunk_config or {})}
             
             if method == "by_pages":
                 # 直接使用 page_map 中的每页作为一个 chunk
@@ -56,7 +69,7 @@ class ChunkingService:
             elif method == "fixed_size":
                 # 对每页内容进行固定大小分块
                 for page_data in page_map:
-                    page_chunks = self._fixed_size_chunks(page_data['text'], chunk_size)
+                    page_chunks = self._fixed_size_chunks(page_data['text'], config["chunk_size"])
                     for idx, chunk in enumerate(page_chunks, 1):
                         chunk_metadata = {
                             "chunk_id": len(chunks) + 1,
@@ -73,7 +86,7 @@ class ChunkingService:
                 # 对每页内容进行段落或句子分块
                 splitter_method = self._paragraph_chunks if method == "by_paragraphs" else self._sentence_chunks
                 for page_data in page_map:
-                    page_chunks = splitter_method(page_data['text'])
+                    page_chunks = splitter_method(page_data['text'], config if method == "by_sentences" else None)
                     for chunk in page_chunks:
                         chunk_metadata = {
                             "chunk_id": len(chunks) + 1,
@@ -148,20 +161,33 @@ class ChunkingService:
         paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
         return [{"text": para} for para in paragraphs]
 
-    def _sentence_chunks(self, text: str) -> list[dict]:
+    def _sentence_chunks(self, text: str, config: dict = None) -> list[dict]:
         """
         将文本按句子分块
         
         Args:
             text: 要分块的文本
+            config: 分块配置，包含以下参数：
+                - chunk_size: 每个块的最大字符数
+                - chunk_overlap: 块之间的重叠字符数
+                - separators: 分隔符列表
             
         Returns:
             分块后的句子列表
         """
+        default_config = {
+            "chunk_size": 1000,
+            "chunk_overlap": 200,
+            "separators": ["。", "！", "？", "\n", " "]
+        }
+        
+        # 合并默认配置和用户配置
+        config = {**default_config, **(config or {})}
+        
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            separators=[".", "!", "?", "\n", " "]
+            chunk_size=config["chunk_size"],
+            chunk_overlap=config["chunk_overlap"],
+            separators=config["separators"]
         )
         texts = splitter.split_text(text)
         return [{"text": t} for t in texts]
